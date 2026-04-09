@@ -103,15 +103,13 @@ if not new_df.empty:
 
     st.header(f"New Actions (Past {NEW_ACTION_DAYS} Days)")
 
-    col_a, col_b, col_c, col_d = st.columns(4)
-    col_a.metric("New Actions", f"{len(new_df):,}")
-    col_b.metric("Sources", new_df["source"].nunique())
-
     new_cat_counts = new_df["category"].value_counts()
-    if len(new_cat_counts) > 0:
-        col_c.metric("Top", new_cat_counts.index[0], f"{new_cat_counts.iloc[0]:,}")
-    if len(new_cat_counts) > 1:
-        col_d.metric("2nd", new_cat_counts.index[1], f"{new_cat_counts.iloc[1]:,}")
+    n_cols = 2 + min(len(new_cat_counts), 3)
+    cols = st.columns(n_cols)
+    cols[0].metric("New Actions", f"{len(new_df):,}")
+    cols[1].metric("Sources", new_df["source"].nunique())
+    for i, (cat, count) in enumerate(new_cat_counts.head(3).items()):
+        cols[2 + i].metric(cat, f"{count:,}")
 
     # New actions table — use parsed_date if available, add Load Date
     date_col = "parsed_date" if "parsed_date" in new_df.columns else "date"
