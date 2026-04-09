@@ -107,7 +107,21 @@ class DiffEngine:
         return rows
 
     def get_recent_actions(self, days: int = 7, limit: int = 500) -> list[dict]:
-        """Return actions whose actual issuance date falls within the last N days."""
+        """Return actions issued in the last N days OR first discovered in the last N days.
+
+        To avoid the initial backfill flooding "new actions," we find the earliest
+        first_seen date in the DB (the seed date). Actions loaded on that date are
+        only included if they have a parseable action date within the window.
+        Actions loaded AFTER the seed date are always included (they're genuinely new).
+        """
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        cutoff_str = cutoff.strftime("%Y-%m-%d")
+
+        # Find the seed date (earliest first_seen, truncated to date)
+        cursor = self.conn.execute("SELECT MIN(first_seen) FROM seen_actions")
+        seed_row = cursor.fetchone()
+        seed_date = seed_row[0][:10] if seed_row and seed_row[0] else ""
+
         self.conn.row_factory = sqlite3.Row
         cursor = self.conn.execute(
             "SELECT fingerprint, source, title, url, date, first_seen FROM seen_actions"
@@ -115,16 +129,22 @@ class DiffEngine:
         all_rows = [dict(row) for row in cursor.fetchall()]
         self.conn.row_factory = None
 
-        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-        recent = []
+        recent = {}
         for row in all_rows:
+            fp = row["fingerprint"]
+            first_seen_date = row["first_seen"][:10]
+            is_seed_day = (first_seen_date == seed_date)
+            is_recent_discovery = (first_seen_date >= cutoff_str and not is_seed_day)
             parsed = _parse_date(row["date"])
-            if parsed and parsed >= cutoff:
-                row["parsed_date"] = parsed.strftime("%Y-%m-%d")
-                recent.append(row)
+            is_recent_action = (parsed is not None and parsed >= cutoff)
 
-        recent.sort(key=lambda r: r["parsed_date"], reverse=True)
-        return recent[:limit]
+            if is_recent_discovery or is_recent_action:
+                row["parsed_date"] = parsed.strftime("%Y-%m-%d") if parsed else ""
+                recent[fp] = row
+
+        result = list(recent.values())
+        result.sort(key=lambda r: r["parsed_date"] or r["first_seen"][:10], reverse=True)
+        return result[:limit]
 
     def close(self):
         self.conn.close()
