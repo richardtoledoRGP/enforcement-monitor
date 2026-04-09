@@ -1,5 +1,7 @@
+import re
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from email.utils import parsedate_to_datetime
 
 from models import EnforcementAction
 
@@ -104,5 +106,57 @@ class DiffEngine:
         self.conn.row_factory = None
         return rows
 
+    def get_recent_actions(self, days: int = 7, limit: int = 500) -> list[dict]:
+        """Return actions whose actual issuance date falls within the last N days."""
+        self.conn.row_factory = sqlite3.Row
+        cursor = self.conn.execute(
+            "SELECT fingerprint, source, title, url, date, first_seen FROM seen_actions"
+        )
+        all_rows = [dict(row) for row in cursor.fetchall()]
+        self.conn.row_factory = None
+
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        recent = []
+        for row in all_rows:
+            parsed = _parse_date(row["date"])
+            if parsed and parsed >= cutoff:
+                row["parsed_date"] = parsed.strftime("%Y-%m-%d")
+                recent.append(row)
+
+        recent.sort(key=lambda r: r["parsed_date"], reverse=True)
+        return recent[:limit]
+
     def close(self):
         self.conn.close()
+
+
+def _parse_date(date_str: str) -> datetime | None:
+    """Best-effort parse of the various date formats across sources."""
+    if not date_str:
+        return None
+
+    # ISO format: 2025-01-17T00:00:00
+    if re.match(r'\d{4}-\d{2}-\d{2}', date_str):
+        try:
+            dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt
+        except ValueError:
+            pass
+
+    # RFC 2822: "Fri, 03 Apr 2026 09:05:47 -0500" or "Thu, 9 Apr 2026 15:00:00 GMT"
+    try:
+        return parsedate_to_datetime(date_str)
+    except Exception:
+        pass
+
+    # US format: "3/15/2026" or "03/15/2026"
+    for fmt in ("%m/%d/%Y", "%m/%d/%y", "%B %d, %Y", "%b %d, %Y"):
+        try:
+            dt = datetime.strptime(date_str.strip(), fmt)
+            return dt.replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+
+    return None

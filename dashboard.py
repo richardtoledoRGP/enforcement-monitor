@@ -91,10 +91,9 @@ total_count = db.count()
 all_sources = db.get_sources()
 
 
-# --- New Actions (past 7 days) ---
+# --- New Actions (past 7 days by actual issuance date) ---
 
-new_cutoff = (datetime.now() - timedelta(days=NEW_ACTION_DAYS)).strftime("%Y-%m-%d")
-new_rows = db.search(date_from=new_cutoff, limit=500)
+new_rows = db.get_recent_actions(days=NEW_ACTION_DAYS, limit=500)
 new_df = pd.DataFrame(new_rows) if new_rows else pd.DataFrame(columns=["source", "title", "url", "date", "first_seen"])
 
 st.title("Enforcement Action Monitor")
@@ -114,10 +113,10 @@ if not new_df.empty:
     if len(new_cat_counts) > 1:
         col_d.metric("2nd Category", new_cat_counts.index[1], f"{new_cat_counts.iloc[1]:,}")
 
-    # New actions table
-    new_display = new_df[["first_seen", "source", "title", "url", "date"]].copy()
-    new_display.columns = ["First Seen", "Source", "Title", "Link", "Action Date"]
-    new_display["First Seen"] = new_display["First Seen"].str[:10]
+    # New actions table — use parsed_date if available
+    date_col = "parsed_date" if "parsed_date" in new_df.columns else "date"
+    new_display = new_df[[date_col, "source", "title", "url"]].copy()
+    new_display.columns = ["Action Date", "Source", "Title", "Link"]
 
     st.dataframe(
         new_display,
