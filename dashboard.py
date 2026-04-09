@@ -114,8 +114,8 @@ if not new_df.empty:
     # New actions table — use parsed_date if available, add Load Date
     date_col = "parsed_date" if "parsed_date" in new_df.columns else "date"
     new_df["load_date"] = new_df["first_seen"].str[:10]
-    new_display = new_df[[date_col, "source", "title", "url", "load_date"]].copy()
-    new_display.columns = ["Action Date", "Source", "Title", "Link", "Load Date"]
+    new_display = new_df[["load_date", "source", "title", "url", date_col]].copy()
+    new_display.columns = ["Load Date", "Source", "Title", "Link", "Action Date"]
 
     st.dataframe(
         new_display,
