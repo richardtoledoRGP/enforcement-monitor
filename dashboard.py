@@ -58,6 +58,29 @@ st.set_page_config(
 os.chdir(Path(__file__).parent)
 
 
+# --- Authentication ---
+
+def check_password() -> bool:
+    """Show a login form and return True if the password is correct."""
+    if st.session_state.get("authenticated"):
+        return True
+
+    with st.container():
+        st.subheader("Login")
+        password = st.text_input("Password", type="password", key="password_input")
+        if st.button("Sign in"):
+            if password == st.secrets.get("password", ""):
+                st.session_state["authenticated"] = True
+                st.rerun()
+            else:
+                st.error("Incorrect password")
+        return False
+
+
+if not check_password():
+    st.stop()
+
+
 @st.cache_resource
 def get_db():
     return DiffEngine(DB_PATH, check_same_thread=False)
