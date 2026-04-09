@@ -2,6 +2,7 @@
 Enforcement Action Monitor — Dashboard
 
 Browse and search historical enforcement actions stored in the SQLite database.
+New actions from the past 7 days are highlighted at the top.
 
 Usage:
     streamlit run dashboard.py
@@ -19,6 +20,7 @@ from diff import DiffEngine
 # --- Config ---
 
 DB_PATH = os.environ.get("DB_PATH", "seen_actions.db")
+NEW_ACTION_DAYS = 7
 
 # Map source names to categories for filtering
 SOURCE_CATEGORIES = {
@@ -35,11 +37,10 @@ SOURCE_CATEGORIES = {
     "OFAC": "Federal Other",
 }
 
-# Anything not explicitly mapped is categorized by prefix
+
 def get_category(source: str) -> str:
     if source in SOURCE_CATEGORIES:
         return SOURCE_CATEGORIES[source]
-    # State sources — infer from common patterns
     insurance_keywords = ["TDI", "OIR", "DOI", "CDI", "OCI", "OIC", "Insurance"]
     if any(kw in source for kw in insurance_keywords):
         return "State Insurance"
@@ -63,39 +64,88 @@ def get_db():
 
 
 db = get_db()
+total_count = db.count()
+all_sources = db.get_sources()
 
 
-# --- Sidebar ---
+# --- New Actions (past 7 days) ---
 
-st.sidebar.title("Filters")
+new_cutoff = (datetime.now() - timedelta(days=NEW_ACTION_DAYS)).strftime("%Y-%m-%d")
+new_rows = db.search(date_from=new_cutoff, limit=500)
+new_df = pd.DataFrame(new_rows) if new_rows else pd.DataFrame(columns=["source", "title", "url", "date", "first_seen"])
+
+st.title("Enforcement Action Monitor")
+
+if not new_df.empty:
+    new_df["category"] = new_df["source"].apply(get_category)
+
+    st.header(f"New Actions (Past {NEW_ACTION_DAYS} Days)")
+
+    col_a, col_b, col_c, col_d = st.columns(4)
+    col_a.metric("New Actions", f"{len(new_df):,}")
+    col_b.metric("Sources", new_df["source"].nunique())
+
+    new_cat_counts = new_df["category"].value_counts()
+    if len(new_cat_counts) > 0:
+        col_c.metric("Top Category", new_cat_counts.index[0], f"{new_cat_counts.iloc[0]:,}")
+    if len(new_cat_counts) > 1:
+        col_d.metric("2nd Category", new_cat_counts.index[1], f"{new_cat_counts.iloc[1]:,}")
+
+    # New actions table
+    new_display = new_df[["first_seen", "source", "title", "url", "date"]].copy()
+    new_display.columns = ["First Seen", "Source", "Title", "Link", "Action Date"]
+    new_display["First Seen"] = new_display["First Seen"].str[:10]
+
+    st.dataframe(
+        new_display,
+        column_config={
+            "Link": st.column_config.LinkColumn("Link", display_text="View"),
+            "Title": st.column_config.TextColumn("Title", width="large"),
+            "Source": st.column_config.TextColumn("Source", width="small"),
+        },
+        hide_index=True,
+        width="stretch",
+        height=min(400, 50 + len(new_df) * 35),
+    )
+
+    # Breakdown by source
+    with st.expander("Breakdown by source"):
+        source_chart = new_df["source"].value_counts().reset_index()
+        source_chart.columns = ["Source", "Count"]
+        st.bar_chart(source_chart, x="Source", y="Count")
+
+    st.divider()
+else:
+    st.info(f"No new enforcement actions in the past {NEW_ACTION_DAYS} days.")
+    st.divider()
+
+
+# --- Sidebar filters ---
+
+st.sidebar.title("Search All Actions")
 
 search_text = st.sidebar.text_input("Search", placeholder="Institution name, keyword, or source...")
 
-# Source filter
-all_sources = db.get_sources()
 if all_sources:
     selected_sources = st.sidebar.multiselect("Source", options=all_sources)
 else:
     selected_sources = []
 
-# Category filter
 all_categories = sorted(set(get_category(s) for s in all_sources))
 selected_categories = st.sidebar.multiselect("Category", options=all_categories)
 
-# Date filter
 col1, col2 = st.sidebar.columns(2)
 default_from = datetime.now() - timedelta(days=365)
 date_from = col1.date_input("From", value=default_from)
 date_to = col2.date_input("To", value=datetime.now())
 
-# If category filter is active, map it back to sources
 if selected_categories and not selected_sources:
     selected_sources = [s for s in all_sources if get_category(s) in selected_categories]
 elif selected_categories and selected_sources:
     selected_sources = [s for s in selected_sources if get_category(s) in selected_categories]
 
 
-# --- Query ---
+# --- Full search results ---
 
 rows = db.search(
     text=search_text,
@@ -107,37 +157,19 @@ rows = db.search(
 
 df = pd.DataFrame(rows) if rows else pd.DataFrame(columns=["source", "title", "url", "date", "first_seen"])
 
+st.header("All Actions")
 
-# --- Header ---
-
-st.title("Enforcement Action Monitor")
-
-total_count = db.count()
-filtered_count = len(df)
-
-col_a, col_b, col_c, col_d = st.columns(4)
-col_a.metric("Total Actions in DB", f"{total_count:,}")
-col_b.metric("Matching Filters", f"{filtered_count:,}")
+col_e, col_f, col_g = st.columns(3)
+col_e.metric("Total in DB", f"{total_count:,}")
+col_f.metric("Matching Filters", f"{len(df):,}")
+if not df.empty:
+    col_g.metric("Sources", df["source"].nunique())
 
 if not df.empty:
-    sources_count = df["source"].nunique()
-    col_c.metric("Sources", sources_count)
-
-    # Count by category
     df["category"] = df["source"].apply(get_category)
-    category_counts = df["category"].value_counts()
-    top_cat = category_counts.index[0] if len(category_counts) > 0 else "N/A"
-    col_d.metric("Top Category", top_cat, f"{category_counts.iloc[0]:,}" if len(category_counts) > 0 else "")
 
-
-# --- Results table ---
-
-if not df.empty:
-    # Format for display
     display_df = df[["first_seen", "source", "title", "url", "date"]].copy()
     display_df.columns = ["First Seen", "Source", "Title", "Link", "Action Date"]
-
-    # Truncate first_seen to date only
     display_df["First Seen"] = display_df["First Seen"].str[:10]
 
     st.dataframe(
@@ -152,13 +184,13 @@ if not df.empty:
         height=600,
     )
 
-    # --- Category breakdown ---
-    st.subheader("By Category")
-    cat_chart = df["category"].value_counts().reset_index()
-    cat_chart.columns = ["Category", "Count"]
-    st.bar_chart(cat_chart, x="Category", y="Count")
+    # Category breakdown
+    with st.expander("By Category"):
+        cat_chart = df["category"].value_counts().reset_index()
+        cat_chart.columns = ["Category", "Count"]
+        st.bar_chart(cat_chart, x="Category", y="Count")
 
-    # --- Export ---
+    # Export
     csv = df[["source", "title", "url", "date", "first_seen"]].to_csv(index=False)
     st.sidebar.download_button(
         label="Download CSV",
@@ -169,8 +201,5 @@ if not df.empty:
 else:
     st.info("No enforcement actions found matching your filters.")
 
-
-# --- Footer ---
 st.sidebar.markdown("---")
 st.sidebar.caption(f"Database: {DB_PATH}")
-st.sidebar.caption(f"Last updated: check `first_seen` dates in results")

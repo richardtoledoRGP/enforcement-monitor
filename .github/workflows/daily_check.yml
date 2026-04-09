@@ -24,16 +24,9 @@ jobs:
       - name: Install Playwright browser
         run: playwright install --with-deps chromium
 
-      - name: Run enforcement action monitor (all sources)
+      - name: Run enforcement action monitor
         working-directory: enforcement-monitor
         run: python main.py --with-browser
-        env:
-          SMTP_HOST: ${{ secrets.SMTP_HOST }}
-          SMTP_PORT: ${{ secrets.SMTP_PORT }}
-          SMTP_USER: ${{ secrets.SMTP_USER }}
-          SMTP_PASS: ${{ secrets.SMTP_PASS }}
-          ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
-          ALERT_EMAIL_FROM: ${{ secrets.ALERT_EMAIL_FROM }}
 
       - name: Commit updated database
         working-directory: enforcement-monitor
