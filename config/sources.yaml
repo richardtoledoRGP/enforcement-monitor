@@ -1,0 +1,463 @@
+# Regulatory Enforcement Action Monitor — Source Registry
+# Each source defines a regulator to check for new enforcement actions.
+#
+# Fields:
+#   name:      Human-readable agency name (used in alerts and logs)
+#   type:      "rss" or "html" — determines which scraper to use
+#   url:       The URL to fetch
+#   category:  federal_banking, federal_other, state_banking, state_insurance
+#   selector:  CSS selector to find action links (html type only). null = not yet configured.
+#   keywords:  List of terms to filter relevant entries. Empty = accept all.
+#   enabled:   Set to false to skip this source during scraping.
+
+# ============================================================================
+# FEDERAL BANKING REGULATORS
+# ============================================================================
+
+- name: "OCC"
+  type: rss
+  url: "https://www.occ.treas.gov/rss/occ_news.xml"
+  category: federal_banking
+  selector: null
+  keywords:
+    - "enforcement"
+    - "consent order"
+    - "cease and desist"
+    - "civil money penalty"
+    - "formal agreement"
+    - "prompt corrective action"
+  enabled: true
+
+- name: "OCC Enforcement Search"
+  type: html
+  url: "https://apps.occ.gov/EASearch"
+  category: federal_banking
+  selector: "table.table tbody tr"
+  keywords: []
+  enabled: true
+
+- name: "FDIC"
+  type: rss
+  url: "https://public.govdelivery.com/topics/USFDIC_26/feed.rss"
+  category: federal_banking
+  selector: null
+  keywords:
+    - "enforcement"
+    - "consent order"
+    - "cease and desist"
+    - "civil money penalty"
+    - "order to pay"
+    - "removal"
+    - "prohibition"
+  enabled: true
+
+
+- name: "Federal Reserve"
+  type: rss
+  url: "https://www.federalreserve.gov/feeds/press_enforcement.xml"
+  category: federal_banking
+  selector: null
+  keywords: []
+  enabled: true
+
+- name: "NCUA"
+  type: html
+  url: "https://ncua.gov/news/enforcement-actions/administrative-orders"
+  category: federal_banking
+  selector: "main a[href*='/enforcement-actions/administrative-orders/']"
+  keywords: []
+  enabled: true
+
+- name: "CFPB"
+  type: rss
+  url: "https://www.consumerfinance.gov/about-us/newsroom/feed/"
+  category: federal_banking
+  selector: null
+  keywords:
+    - "enforcement"
+    - "consent order"
+    - "civil penalty"
+    - "stipulated"
+  enabled: true
+
+- name: "CFPB Actions"
+  type: html
+  url: "https://www.consumerfinance.gov/enforcement/actions/"
+  category: federal_banking
+  selector: "article.o-post-preview"
+  keywords: []
+  enabled: true
+
+# ============================================================================
+# OTHER FEDERAL REGULATORS
+# ============================================================================
+
+- name: "SEC Litigation"
+  type: html
+  url: "https://www.sec.gov/litigation/litreleases.htm"
+  category: federal_other
+  selector: "table tr"
+  keywords:
+    - "bank"
+    - "credit union"
+    - "broker-dealer"
+    - "investment"
+    - "insurance"
+  enabled: true
+
+- name: "FinCEN"
+  type: html
+  url: "https://www.fincen.gov/news/enforcement-actions"
+  category: federal_other
+  selector: "a[href*='/system/files/enforcement_action/']"
+  keywords: []
+  enabled: true
+
+- name: "OFAC"
+  type: html
+  url: "https://ofac.treasury.gov/civil-penalties-and-enforcement-information"
+  category: federal_other
+  selector: null  # Page structure not yet inspected; configure later
+  keywords: []
+  enabled: false
+
+# ============================================================================
+# STATE BANKING / FINANCIAL REGULATORS (Top 20 by market size)
+# ============================================================================
+
+# --- WORKING (static HTML, selectors configured) ---
+
+- name: "CA DFPI"
+  type: html
+  url: "https://dfpi.ca.gov/rules-enforcement/summary-of-actions-and-orders-listed-by-month/"
+  category: state_banking
+  selector: "div.entry-content a[href*='wp-content/uploads']"
+  keywords: []
+  enabled: true
+
+- name: "NY DFS"
+  type: html
+  url: "https://www.dfs.ny.gov/industry_guidance/enforcement_actions"
+  category: state_banking
+  selector: "div.field--name-body table tbody tr"
+  keywords: []
+  enabled: true
+
+- name: "NY DFS Press"
+  type: html
+  url: "https://www.dfs.ny.gov/reports_and_publications/press_releases"
+  category: state_banking
+  selector: "div.view-content div.views-row"
+  keywords:
+    - "enforcement"
+    - "consent order"
+    - "penalty"
+    - "fine"
+    - "cease and desist"
+  enabled: true
+
+- name: "TX DOB"
+  type: html
+  url: "https://dob.texas.gov/news-and-events/press-2025"
+  category: state_banking
+  selector: "article ul li a[href*='press-releases']"
+  keywords:
+    - "enforcement"
+    - "consent order"
+    - "penalty"
+    - "cease and desist"
+  enabled: true
+
+- name: "IL IDFPR"
+  type: html
+  url: "https://idfpr.illinois.gov/banks/cbt/enforcement.html"
+  category: state_banking
+  selector: ".cmp-text a[href*='enforcement/enforcement']"
+  keywords: []
+  enabled: true
+
+- name: "OH Financial Institutions"
+  type: html
+  url: "https://com.ohio.gov/wps/portal/gov/com/divisions-and-programs/financial-institutions/enforcement/enforcement"
+  category: state_banking
+  selector: ".odx-content__body table a"
+  keywords: []
+  enabled: true
+
+- name: "NJ DOBI"
+  type: html
+  url: "https://www.nj.gov/dobi/lrorders.htm"
+  category: state_banking
+  selector: "a[href*='orders/']"
+  keywords: []
+  enabled: true
+
+- name: "GA Banking"
+  type: html
+  url: "https://dbf.georgia.gov/laws-regulations-rulings-publications/unauthorized-banking-orders"
+  category: state_banking
+  selector: "a[href*='media'][href*='download']"
+  keywords: []
+  enabled: true
+
+- name: "NC Commissioner of Banks"
+  type: html
+  url: "https://nccob.nc.gov/news-research"
+  category: state_banking
+  selector: "a[href*='press-releases']"
+  keywords:
+    - "enforcement"
+    - "consent"
+    - "order"
+    - "penalty"
+    - "cease"
+    - "settle"
+  enabled: true
+
+- name: "MA Division of Banks"
+  type: html
+  url: "https://www.mass.gov/info-details/enforcement-actions-issued-by-the-division-of-banks"
+  category: state_banking
+  selector: ".ma__table a"
+  keywords: []
+  enabled: true
+
+- name: "WA DFI"
+  type: html
+  url: "https://dfi.wa.gov/enforcement-actions"
+  category: state_banking
+  selector: ".view-content table td a[href*='pdf']"
+  keywords: []
+  enabled: true
+
+- name: "MD Financial Regulation"
+  type: html
+  url: "https://labor.maryland.gov/finance/consumers/enforcement.shtml"
+  category: state_banking
+  selector: "ul li a[href*='enforce']"
+  keywords: []
+  enabled: true
+
+- name: "CT Banking"
+  type: html
+  url: "https://portal.ct.gov/dob/enforcement/administrative-orders-index-pages/index---administrative-orders-and-settlements"
+  category: state_banking
+  selector: "main a[href*='pdf']"
+  keywords: []
+  enabled: true
+
+# --- Converted from disabled to working ---
+
+- name: "FL OFR"
+  type: html
+  url: "https://www.doah.state.fl.us/FLAIO/OFR/"
+  category: state_banking
+  selector: "a[href*='FLAID/OFR']"
+  keywords: []
+  enabled: true
+
+- name: "AZ DIFI"
+  type: html
+  url: "https://difi.az.gov/archive/enforcement-actions?field_filed_date_value%5Bmin%5D=&field_filed_date_value%5Bmax%5D=&field_order_type_target_id=All&field_enforcement_type_target_id=All"
+  category: state_banking
+  selector: "table.views-table tbody tr td.views-field-title a"
+  keywords: []
+  enabled: true
+
+# --- Playwright sources (JS-rendered, need --with-browser) ---
+
+- name: "OR DFR"
+  type: playwright
+  url: "https://dfr.oregon.gov/laws-rules/Pages/notices-orders.aspx"
+  category: state_banking
+  selector: "table#resultTable a[href*='.pdf']"
+  wait_for: "table#resultTable"
+  actions: []
+  keywords: []
+  enabled: true
+
+- name: "MI DIFS"
+  type: playwright
+  url: "https://www.michigan.gov/difs/legal/hearings-decisions/directors-orders"
+  category: state_banking
+  selector: "ul.search-result-list a[href*='.pdf']"
+  wait_for: "ul.search-result-list"
+  actions: []
+  keywords: []
+  enabled: true
+
+- name: "PA Banking"
+  type: playwright
+  url: "https://www.pa.gov/agencies/dobs/enforcement-orders/"
+  category: state_banking
+  selector: "atomic-result-link"
+  wait_for: "atomic-result-link"
+  shadow_dom: true
+  actions: []
+  keywords: []
+  enabled: true
+
+- name: "MN Commerce"
+  type: html
+  url: "https://cards.web.commerce.state.mn.us/enforcement-actions"
+  category: state_banking
+  selector: null  # Returns 403 Forbidden; site blocks all automated access
+  keywords: []
+  enabled: false
+
+# --- DISABLED: No enforcement page found ---
+
+- name: "CO Banking"
+  type: html
+  url: "https://banking.colorado.gov/public-notices"
+  category: state_banking
+  selector: "a[href$='.pdf']"
+  keywords:
+    - "consent order"
+    - "liquidation"
+    - "cease and desist"
+    - "enforcement"
+    - "penalty"
+  enabled: true
+
+- name: "VA BFI"
+  type: html
+  url: "https://www.scc.virginia.gov/regulated-industries/bureau-of-financial-institutions/"
+  category: state_banking
+  selector: null  # Weekly bulletin has licensing activity only, no enforcement actions
+  keywords: []
+  enabled: false
+
+# ============================================================================
+# STATE INSURANCE REGULATORS (Top 12 by market size)
+# Note: NY DFS, NJ DOBI cover insurance in banking section above.
+# ============================================================================
+
+# --- WORKING (static HTML, selectors configured) ---
+
+- name: "TX TDI"
+  type: html
+  url: "https://www.tdi.texas.gov/commissioner/disciplinary-orders/index.html"
+  category: state_insurance
+  selector: "table a"
+  keywords: []
+  enabled: true
+
+- name: "FL OIR"
+  type: html
+  url: "https://floir.gov/resources-and-reports/orders-and-memoranda"
+  category: state_insurance
+  selector: "table a[href*='orders']"
+  keywords: []
+  enabled: true
+
+- name: "NC DOI"
+  type: html
+  url: "https://www.ncdoi.gov/licaction"
+  category: state_insurance
+  selector: ".view-content table td a[href]"
+  keywords: []
+  enabled: true
+
+- name: "MA DOI"
+  type: html
+  url: "https://www.mass.gov/news/division-of-insurance-public-hearing-decisions"
+  category: state_insurance
+  selector: "main a[href*='/doc/']"
+  keywords: []
+  enabled: true
+
+# --- Playwright sources (need --with-browser) ---
+
+- name: "IL DOI"
+  type: playwright
+  url: "https://insurance.illinois.gov/Applications/DirectorsOrders/"
+  category: state_insurance
+  selector: "#DocumentResults tbody tr"
+  wait_for: "#Search_SelectedDocumentTypes"
+  actions:
+    - { type: "click", selector: "button[type='submit']" }
+    - { type: "wait", selector: "#DocumentResults tbody tr" }
+  keywords: []
+  enabled: true
+
+- name: "OH DOI"
+  type: playwright
+  url: "https://gateway.insurance.ohio.gov/UI/ODI.AdministrativeAction.Public.UI/"
+  category: state_insurance
+  selector: null  # Gateway app form elements don't load reliably; needs custom scraper
+  keywords: []
+  enabled: false
+
+- name: "WA OIC"
+  type: playwright
+  url: "https://fortress.wa.gov/oic/consumertoolkit/search.aspx?searchtype=ord"
+  category: state_insurance
+  selector: "#ConsumerCareContents_SearchTabs_ctl00_OrderSearchRslt_SearchResult tbody tr"
+  wait_for: "#ConsumerCareContents_SearchTabs_ctl00_ddlOrderIssuedYear"
+  actions:
+    - { type: "select", selector: "#ConsumerCareContents_SearchTabs_ctl00_ddlOrderIssuedYear", value: "2026" }
+    - { type: "click", selector: "#ConsumerCareContents_SearchTabs_ctl00_SearchBtn" }
+    - { type: "wait", selector: "#ConsumerCareContents_SearchTabs_ctl00_OrderSearchRslt_SearchResult" }
+  keywords: []
+  enabled: true
+
+- name: "CO DOI"
+  type: playwright
+  url: "https://doi.colorado.gov/for-consumers/consumer-protection/disciplinary-actions/company-enforcement-actions"
+  category: state_insurance
+  selector: null  # Google Looker Studio iframe; cross-origin content not accessible
+  keywords: []
+  enabled: false
+
+- name: "FDIC Orders"
+  type: playwright
+  url: "https://orders.fdic.gov/s/searchform"
+  category: federal_banking
+  selector: null  # Salesforce LWC renders data outside static HTML; needs custom locator extraction
+  keywords: []
+  enabled: false
+
+# --- DISABLED: Not scrapable ---
+
+- name: "CA CDI"
+  type: html
+  url: "https://legaldocs.insurance.ca.gov/publicdocs/SearchBasic"
+  category: state_insurance
+  selector: null  # ASP.NET postback; result links use __doPostBack (no direct URLs)
+  keywords: []
+  enabled: false
+
+# --- DISABLED: No enforcement page found or not enforcement-focused ---
+
+- name: "GA OCI"
+  type: html
+  url: "https://oci.georgia.gov/press-releases"
+  category: state_insurance
+  selector: "a[href*='/press-releases/']"
+  keywords:
+    - "fine"
+    - "penalty"
+    - "violation"
+    - "enforcement"
+    - "consent order"
+    - "cease and desist"
+    - "revoke"
+    - "suspend"
+  enabled: true
+
+- name: "PA Insurance"
+  type: html
+  url: "https://www.pa.gov/agencies/insurance/posted-filings-reports-company-orders/insurance-company-orders"
+  category: state_insurance
+  selector: "main a[href*='/insurance-company-orders/']"
+  keywords: []
+  enabled: true
+
+- name: "VA Insurance"
+  type: html
+  url: "https://www.scc.virginia.gov/regulated-industries/bureau-of-insurance/"
+  category: state_insurance
+  selector: null  # Enforcement page has guidance docs only, not action listings
+  keywords: []
+  enabled: false

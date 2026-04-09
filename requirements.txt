@@ -1,0 +1,8 @@
+httpx
+beautifulsoup4
+feedparser
+pyyaml
+python-dotenv
+curl_cffi
+playwright
+streamlit
