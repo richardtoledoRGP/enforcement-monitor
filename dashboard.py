@@ -109,14 +109,15 @@ if not new_df.empty:
 
     new_cat_counts = new_df["category"].value_counts()
     if len(new_cat_counts) > 0:
-        col_c.metric("Top Category", new_cat_counts.index[0], f"{new_cat_counts.iloc[0]:,}")
+        col_c.metric("Top", new_cat_counts.index[0], f"{new_cat_counts.iloc[0]:,}")
     if len(new_cat_counts) > 1:
-        col_d.metric("2nd Category", new_cat_counts.index[1], f"{new_cat_counts.iloc[1]:,}")
+        col_d.metric("2nd", new_cat_counts.index[1], f"{new_cat_counts.iloc[1]:,}")
 
-    # New actions table — use parsed_date if available
+    # New actions table — use parsed_date if available, add Load Date
     date_col = "parsed_date" if "parsed_date" in new_df.columns else "date"
-    new_display = new_df[[date_col, "source", "title", "url"]].copy()
-    new_display.columns = ["Action Date", "Source", "Title", "Link"]
+    new_df["load_date"] = new_df["first_seen"].str[:10]
+    new_display = new_df[[date_col, "source", "title", "url", "load_date"]].copy()
+    new_display.columns = ["Action Date", "Source", "Title", "Link", "Load Date"]
 
     st.dataframe(
         new_display,
@@ -191,8 +192,8 @@ if not df.empty:
     df["category"] = df["source"].apply(get_category)
 
     display_df = df[["first_seen", "source", "title", "url", "date"]].copy()
-    display_df.columns = ["First Seen", "Source", "Title", "Link", "Action Date"]
-    display_df["First Seen"] = display_df["First Seen"].str[:10]
+    display_df.columns = ["Load Date", "Source", "Title", "Link", "Action Date"]
+    display_df["Load Date"] = display_df["Load Date"].str[:10]
 
     st.dataframe(
         display_df,
