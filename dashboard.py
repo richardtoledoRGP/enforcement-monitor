@@ -53,6 +53,7 @@ st.set_page_config(
     page_title="Enforcement Action Monitor",
     page_icon="*",
     layout="wide",
+    initial_sidebar_state="collapsed",
 )
 
 os.chdir(Path(__file__).parent)
@@ -90,15 +91,17 @@ db = get_db()
 
 # --- Header ---
 
-st.title("Enforcement Action Monitor")
+col_title, col_nav = st.columns([4, 1])
+col_title.title("Enforcement Action Monitor")
+col_nav.page_link("pages/Search_All_Actions.py", label="Search All Actions", icon=":material/search:")
 
 last_updated = db.last_updated()
 if last_updated:
     try:
         lu_dt = datetime.fromisoformat(last_updated)
-        st.caption(f"Last updated: {lu_dt.strftime('%B %d, %Y at %I:%M %p')} UTC")
+        st.caption(f"Last updated: {lu_dt.strftime('%B %d, %Y at %I:%M %p')} UTC  |  Total actions in DB: {db.count():,}")
     except ValueError:
-        st.caption(f"Last updated: {last_updated[:19]}")
+        st.caption(f"Last updated: {last_updated[:19]}  |  Total actions in DB: {db.count():,}")
 
 
 # --- New Actions (past 5 days by actual issuance date) ---
@@ -145,7 +148,3 @@ if not new_df.empty:
 
 else:
     st.info(f"No new enforcement actions in the past {NEW_ACTION_DAYS} days.")
-
-# --- Footer ---
-st.sidebar.metric("Total Actions in DB", f"{db.count():,}")
-st.sidebar.caption(f"Database: {DB_PATH}")

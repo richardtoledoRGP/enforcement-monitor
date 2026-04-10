@@ -45,6 +45,7 @@ st.set_page_config(
     page_title="Search All Actions",
     page_icon="*",
     layout="wide",
+    initial_sidebar_state="collapsed",
 )
 
 os.chdir(Path(__file__).parent.parent)
@@ -68,27 +69,29 @@ total_count = db.count()
 
 # --- Header ---
 
-st.title("Search All Actions")
+col_title, col_nav = st.columns([4, 1])
+col_title.title("Search All Actions")
+col_nav.page_link("dashboard.py", label="Back to Dashboard", icon=":material/arrow_back:")
 
 
-# --- Sidebar filters ---
+# --- Filters (inline, not sidebar) ---
 
-st.sidebar.title("Filters")
+filter_col1, filter_col2, filter_col3, filter_col4 = st.columns([3, 2, 2, 2])
 
-search_text = st.sidebar.text_input("Search", placeholder="Institution name, keyword, or source...")
+search_text = filter_col1.text_input("Search", placeholder="Institution name, keyword, or source...")
 
 if all_sources:
-    selected_sources = st.sidebar.multiselect("Source", options=all_sources)
+    selected_sources = filter_col2.multiselect("Source", options=all_sources)
 else:
     selected_sources = []
 
 all_categories = sorted(set(get_category(s) for s in all_sources))
-selected_categories = st.sidebar.multiselect("Category", options=all_categories)
+selected_categories = filter_col3.multiselect("Category", options=all_categories)
 
-col1, col2 = st.sidebar.columns(2)
+date_cols = filter_col4.columns(2)
 default_from = datetime.now() - timedelta(days=365)
-date_from = col1.date_input("From", value=default_from)
-date_to = col2.date_input("To", value=datetime.now())
+date_from = date_cols[0].date_input("From", value=default_from)
+date_to = date_cols[1].date_input("To", value=datetime.now())
 
 if selected_categories and not selected_sources:
     selected_sources = [s for s in all_sources if get_category(s) in selected_categories]
@@ -147,7 +150,7 @@ if not df.empty:
 
     # Export
     csv = df[["source", "title", "url", "date", "first_seen"]].to_csv(index=False)
-    st.sidebar.download_button(
+    st.download_button(
         label="Download CSV",
         data=csv,
         file_name=f"enforcement_actions_{datetime.now().strftime('%Y%m%d')}.csv",
