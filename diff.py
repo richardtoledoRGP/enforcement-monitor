@@ -56,6 +56,11 @@ class DiffEngine:
         cursor = self.conn.execute("SELECT COUNT(*) FROM seen_actions")
         return cursor.fetchone()[0]
 
+    def last_updated(self) -> str:
+        cursor = self.conn.execute("SELECT MAX(first_seen) FROM seen_actions")
+        row = cursor.fetchone()
+        return row[0] if row and row[0] else ""
+
     def get_sources(self) -> list[str]:
         cursor = self.conn.execute(
             "SELECT DISTINCT source FROM seen_actions ORDER BY source"

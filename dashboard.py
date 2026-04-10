@@ -98,6 +98,15 @@ new_df = pd.DataFrame(new_rows) if new_rows else pd.DataFrame(columns=["source",
 
 st.title("Enforcement Action Monitor")
 
+last_updated = db.last_updated()
+if last_updated:
+    # Parse ISO timestamp and format nicely
+    try:
+        lu_dt = datetime.fromisoformat(last_updated)
+        st.caption(f"Last updated: {lu_dt.strftime('%B %d, %Y at %I:%M %p')} UTC")
+    except ValueError:
+        st.caption(f"Last updated: {last_updated[:19]}")
+
 if not new_df.empty:
     new_df["category"] = new_df["source"].apply(get_category)
 
