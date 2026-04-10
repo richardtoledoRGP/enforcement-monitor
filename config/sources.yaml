@@ -65,6 +65,7 @@
   url: "https://ncua.gov/news/enforcement-actions/administrative-orders"
   category: federal_banking
   selector: "main a[href*='/enforcement-actions/administrative-orders/']"
+  title_from_url: "administrative-order-matter-"
   keywords: []
   enabled: true
 
@@ -226,7 +227,8 @@
   type: html
   url: "https://dfi.wa.gov/enforcement-actions"
   category: state_banking
-  selector: ".view-content table td a[href*='pdf']"
+  selector: ".view-content table tr"
+  title_selector: "td:nth-child(2)"
   keywords: []
   enabled: true
 
@@ -260,7 +262,8 @@
   type: html
   url: "https://difi.az.gov/archive/enforcement-actions?field_filed_date_value%5Bmin%5D=&field_filed_date_value%5Bmax%5D=&field_order_type_target_id=All&field_enforcement_type_target_id=All"
   category: state_banking
-  selector: "table.views-table tbody tr td.views-field-title a"
+  selector: "table.views-table tbody tr"
+  title_selector: "td.views-field-body"
   keywords: []
   enabled: true
 
@@ -339,7 +342,8 @@
   type: html
   url: "https://www.tdi.texas.gov/commissioner/disciplinary-orders/index.html"
   category: state_insurance
-  selector: "table a"
+  selector: "table tr"
+  title_selector: "td:nth-child(3)"
   keywords: []
   enabled: true
 
@@ -394,6 +398,7 @@
   url: "https://fortress.wa.gov/oic/consumertoolkit/search.aspx?searchtype=ord"
   category: state_insurance
   selector: "#ConsumerCareContents_SearchTabs_ctl00_OrderSearchRslt_SearchResult tbody tr"
+  title_selector: "td:nth-child(3)"
   wait_for: "#ConsumerCareContents_SearchTabs_ctl00_ddlOrderIssuedYear"
   actions:
     - { type: "select", selector: "#ConsumerCareContents_SearchTabs_ctl00_ddlOrderIssuedYear", value: "2026" }

@@ -153,6 +153,8 @@ class HtmlScraper(BaseScraper):
         name = source["name"]
         url = source["url"]
         selector = source.get("selector")
+        title_selector = source.get("title_selector")
+        title_from_url = source.get("title_from_url")
         keywords = source.get("keywords", [])
 
         if not selector:
@@ -178,7 +180,21 @@ class HtmlScraper(BaseScraper):
                 if not title or not href:
                     continue
 
+                # Use title_selector if configured (e.g., a specific table column)
+                if title_selector:
+                    title_el = el.select_one(title_selector)
+                    if title_el:
+                        title = title_el.get_text(strip=True)
+
                 full_url = urljoin(url, href)
+
+                # Extract title from URL slug if configured
+                if title_from_url and title_from_url in full_url:
+                    slug = full_url.split(title_from_url)[-1].split("?")[0].split("#")[0]
+                    name_from_url = slug.replace("-", " ").replace("_", " ").replace(".pdf", "").strip().title()
+                    if name_from_url:
+                        title = name_from_url
+
                 full_text = el.get_text(" ", strip=True)
 
                 if not self.matches_keywords(full_text, keywords):
@@ -275,6 +291,7 @@ class PlaywrightScraper(BaseScraper):
         name = source["name"]
         url = source["url"]
         selector = source.get("selector")
+        title_selector = source.get("title_selector")
         wait_for = source.get("wait_for", selector)
         actions = source.get("actions", [])
         keywords = source.get("keywords", [])
@@ -341,6 +358,12 @@ class PlaywrightScraper(BaseScraper):
 
                 full_url = urljoin(url, href)
                 full_text = el.get_text(" ", strip=True)
+
+                # Use title_selector if configured (e.g., a specific table column)
+                if title_selector:
+                    title_el = el.select_one(title_selector)
+                    if title_el:
+                        title = title_el.get_text(strip=True)
 
                 # Fall back to parent element text if link text is empty
                 if not title:
