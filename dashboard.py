@@ -20,7 +20,7 @@ from diff import DiffEngine
 # --- Config ---
 
 DB_PATH = os.environ.get("DB_PATH", "seen_actions.db")
-NEW_ACTION_DAYS = 7
+NEW_ACTION_DAYS = 5
 
 # Map source names to categories for filtering
 SOURCE_CATEGORIES = {
