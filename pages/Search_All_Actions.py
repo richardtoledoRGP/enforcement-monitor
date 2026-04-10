@@ -15,27 +15,45 @@ from diff import DiffEngine
 
 DB_PATH = os.environ.get("DB_PATH", "seen_actions.db")
 
-SOURCE_CATEGORIES = {
-    "OCC": "Federal Banking",
-    "OCC Enforcement Search": "Federal Banking",
-    "FDIC": "Federal Banking",
-    "FDIC Orders": "Federal Banking",
-    "Federal Reserve": "Federal Banking",
-    "NCUA": "Federal Banking",
-    "CFPB": "Federal Banking",
-    "CFPB Actions": "Federal Banking",
-    "SEC Litigation": "Federal Other",
-    "FinCEN": "Federal Other",
-    "OFAC": "Federal Other",
-}
+# Explicit source-to-group mappings.
+# Sources can appear in multiple groups (e.g., combined banking + insurance agencies).
+FEDERAL_SOURCES = [
+    "OCC", "OCC Enforcement Search", "FDIC", "FDIC Orders",
+    "Federal Reserve", "NCUA", "CFPB", "CFPB Actions",
+    "SEC Litigation", "FinCEN", "OFAC",
+]
+
+STATE_BANKING_SOURCES = [
+    "CA DFPI", "NY DFS", "NY DFS Press", "TX DOB", "IL IDFPR",
+    "OH Financial Institutions", "NJ DOBI", "GA Banking",
+    "NC Commissioner of Banks", "MA Division of Banks", "WA DFI",
+    "MD Financial Regulation", "CT Banking", "FL OFR", "AZ DIFI",
+    "OR DFR", "MI DIFS", "PA Banking", "CO Banking", "MN Commerce",
+    # Combined banking + insurance agencies (also in STATE_INSURANCE_SOURCES)
+    "NJ DOBI", "AZ DIFI", "MI DIFS",
+]
+
+STATE_INSURANCE_SOURCES = [
+    "TX TDI", "FL OIR", "NC DOI", "MA DOI", "IL DOI", "WA OIC",
+    "GA OCI", "PA Insurance", "OH DOI", "CO DOI", "CA CDI",
+    # Combined banking + insurance agencies (also in STATE_BANKING_SOURCES)
+    "NJ DOBI", "AZ DIFI", "MI DIFS",
+    # NY DFS covers insurance too
+    "NY DFS", "NY DFS Press",
+]
 
 
 def get_category(source: str) -> str:
-    if source in SOURCE_CATEGORIES:
-        return SOURCE_CATEGORIES[source]
-    insurance_keywords = ["TDI", "OIR", "DOI", "CDI", "OCI", "OIC", "Insurance"]
-    if any(kw in source for kw in insurance_keywords):
+    if source in FEDERAL_SOURCES:
+        return "Federal"
+    # Check insurance first since some appear in both
+    if source in STATE_INSURANCE_SOURCES and source not in STATE_BANKING_SOURCES:
         return "State Insurance"
+    if source in STATE_BANKING_SOURCES and source not in STATE_INSURANCE_SOURCES:
+        return "State Banking"
+    if source in STATE_BANKING_SOURCES and source in STATE_INSURANCE_SOURCES:
+        return "State Banking & Insurance"
+    # Fallback
     return "State Banking"
 
 
@@ -74,6 +92,11 @@ db = get_db()
 all_sources = db.get_sources()
 total_count = db.count()
 
+# Build per-group source lists (only sources that exist in the DB)
+federal_in_db = sorted(s for s in all_sources if s in FEDERAL_SOURCES)
+state_banking_in_db = sorted(s for s in all_sources if s in STATE_BANKING_SOURCES)
+state_insurance_in_db = sorted(s for s in all_sources if s in STATE_INSURANCE_SOURCES)
+
 
 # --- Header ---
 
@@ -81,29 +104,23 @@ st.title("Search All Actions")
 st.page_link("dashboard.py", label="Back to Dashboard", icon=":material/arrow_back:")
 
 
-# --- Filters (inline, not sidebar) ---
+# --- Filters ---
 
-filter_col1, filter_col2, filter_col3, filter_col4 = st.columns([3, 2, 2, 2])
+search_text = st.text_input("Search", placeholder="Institution name, keyword, or source...")
 
-search_text = filter_col1.text_input("Search", placeholder="Institution name, keyword, or source...")
+filter_col1, filter_col2, filter_col3, filter_col4 = st.columns([1, 1, 1, 1])
 
-if all_sources:
-    selected_sources = filter_col2.multiselect("Source", options=all_sources)
-else:
-    selected_sources = []
-
-all_categories = sorted(set(get_category(s) for s in all_sources))
-selected_categories = filter_col3.multiselect("Category", options=all_categories)
+selected_federal = filter_col1.multiselect("Federal Sources", options=federal_in_db)
+selected_state_banking = filter_col2.multiselect("State Banking Sources", options=state_banking_in_db)
+selected_state_insurance = filter_col3.multiselect("State Insurance Sources", options=state_insurance_in_db)
 
 date_cols = filter_col4.columns(2)
 default_from = datetime.now() - timedelta(days=365)
 date_from = date_cols[0].date_input("From", value=default_from)
 date_to = date_cols[1].date_input("To", value=datetime.now())
 
-if selected_categories and not selected_sources:
-    selected_sources = [s for s in all_sources if get_category(s) in selected_categories]
-elif selected_categories and selected_sources:
-    selected_sources = [s for s in selected_sources if get_category(s) in selected_categories]
+# Combine all selected sources (deduplicated)
+selected_sources = list(set(selected_federal + selected_state_banking + selected_state_insurance))
 
 
 # --- Query ---
