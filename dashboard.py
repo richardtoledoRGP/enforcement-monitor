@@ -1,15 +1,15 @@
 """
 Enforcement Action Monitor — Dashboard
 
-Browse and search historical enforcement actions stored in the SQLite database.
-New actions from the past 7 days are highlighted at the top.
+New enforcement actions from the past 5 days are highlighted on this landing page.
+Use the "Search All Actions" page to browse and filter the full database.
 
 Usage:
     streamlit run dashboard.py
 """
 
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 import streamlit as st
@@ -87,25 +87,24 @@ def get_db():
 
 
 db = get_db()
-total_count = db.count()
-all_sources = db.get_sources()
 
-
-# --- New Actions (past 7 days by actual issuance date) ---
-
-new_rows = db.get_recent_actions(days=NEW_ACTION_DAYS, limit=500)
-new_df = pd.DataFrame(new_rows) if new_rows else pd.DataFrame(columns=["source", "title", "url", "date", "first_seen"])
+# --- Header ---
 
 st.title("Enforcement Action Monitor")
 
 last_updated = db.last_updated()
 if last_updated:
-    # Parse ISO timestamp and format nicely
     try:
         lu_dt = datetime.fromisoformat(last_updated)
         st.caption(f"Last updated: {lu_dt.strftime('%B %d, %Y at %I:%M %p')} UTC")
     except ValueError:
         st.caption(f"Last updated: {last_updated[:19]}")
+
+
+# --- New Actions (past 5 days by actual issuance date) ---
+
+new_rows = db.get_recent_actions(days=NEW_ACTION_DAYS, limit=500)
+new_df = pd.DataFrame(new_rows) if new_rows else pd.DataFrame(columns=["source", "title", "url", "date", "first_seen"])
 
 if not new_df.empty:
     new_df["category"] = new_df["source"].apply(get_category)
@@ -120,7 +119,7 @@ if not new_df.empty:
     for i, (cat, count) in enumerate(new_cat_counts.head(3).items()):
         cols[2 + i].metric(cat, f"{count:,}")
 
-    # New actions table — use parsed_date if available, add Load Date
+    # New actions table
     date_col = "parsed_date" if "parsed_date" in new_df.columns else "date"
     new_df["load_date"] = new_df["first_seen"].str[:10]
     new_display = new_df[["load_date", "source", "title", "url", date_col]].copy()
@@ -135,7 +134,7 @@ if not new_df.empty:
         },
         hide_index=True,
         width="stretch",
-        height=min(400, 50 + len(new_df) * 35),
+        height=min(600, 50 + len(new_df) * 35),
     )
 
     # Breakdown by source
@@ -144,92 +143,9 @@ if not new_df.empty:
         source_chart.columns = ["Source", "Count"]
         st.bar_chart(source_chart, x="Source", y="Count")
 
-    st.divider()
 else:
     st.info(f"No new enforcement actions in the past {NEW_ACTION_DAYS} days.")
-    st.divider()
 
-
-# --- Sidebar filters ---
-
-st.sidebar.title("Search All Actions")
-
-search_text = st.sidebar.text_input("Search", placeholder="Institution name, keyword, or source...")
-
-if all_sources:
-    selected_sources = st.sidebar.multiselect("Source", options=all_sources)
-else:
-    selected_sources = []
-
-all_categories = sorted(set(get_category(s) for s in all_sources))
-selected_categories = st.sidebar.multiselect("Category", options=all_categories)
-
-col1, col2 = st.sidebar.columns(2)
-default_from = datetime.now() - timedelta(days=365)
-date_from = col1.date_input("From", value=default_from)
-date_to = col2.date_input("To", value=datetime.now())
-
-if selected_categories and not selected_sources:
-    selected_sources = [s for s in all_sources if get_category(s) in selected_categories]
-elif selected_categories and selected_sources:
-    selected_sources = [s for s in selected_sources if get_category(s) in selected_categories]
-
-
-# --- Full search results ---
-
-rows = db.search(
-    text=search_text,
-    sources=selected_sources or None,
-    date_from=str(date_from) if date_from else "",
-    date_to=str(date_to) if date_to else "",
-    limit=2000,
-)
-
-df = pd.DataFrame(rows) if rows else pd.DataFrame(columns=["source", "title", "url", "date", "first_seen"])
-
-st.header("All Actions")
-
-col_e, col_f, col_g = st.columns(3)
-col_e.metric("Total in DB", f"{total_count:,}")
-col_f.metric("Matching Filters", f"{len(df):,}")
-if not df.empty:
-    col_g.metric("Sources", df["source"].nunique())
-
-if not df.empty:
-    df["category"] = df["source"].apply(get_category)
-
-    display_df = df[["first_seen", "source", "title", "url", "date"]].copy()
-    display_df.columns = ["Load Date", "Source", "Title", "Link", "Action Date"]
-    display_df["Load Date"] = display_df["Load Date"].str[:10]
-
-    st.dataframe(
-        display_df,
-        column_config={
-            "Link": st.column_config.LinkColumn("Link", display_text="View"),
-            "Title": st.column_config.TextColumn("Title", width="large"),
-            "Source": st.column_config.TextColumn("Source", width="small"),
-        },
-        hide_index=True,
-        width="stretch",
-        height=600,
-    )
-
-    # Category breakdown
-    with st.expander("By Category"):
-        cat_chart = df["category"].value_counts().reset_index()
-        cat_chart.columns = ["Category", "Count"]
-        st.bar_chart(cat_chart, x="Category", y="Count")
-
-    # Export
-    csv = df[["source", "title", "url", "date", "first_seen"]].to_csv(index=False)
-    st.sidebar.download_button(
-        label="Download CSV",
-        data=csv,
-        file_name=f"enforcement_actions_{datetime.now().strftime('%Y%m%d')}.csv",
-        mime="text/csv",
-    )
-else:
-    st.info("No enforcement actions found matching your filters.")
-
-st.sidebar.markdown("---")
+# --- Footer ---
+st.sidebar.metric("Total Actions in DB", f"{db.count():,}")
 st.sidebar.caption(f"Database: {DB_PATH}")
