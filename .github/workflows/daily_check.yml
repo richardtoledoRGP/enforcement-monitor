@@ -25,11 +25,9 @@ jobs:
         run: playwright install --with-deps chromium
 
       - name: Run enforcement action monitor
-        working-directory: enforcement-monitor
         run: python main.py --with-browser
 
       - name: Commit updated database
-        working-directory: enforcement-monitor
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
