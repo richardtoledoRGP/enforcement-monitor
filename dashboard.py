@@ -99,9 +99,8 @@ db = get_db()
 
 # --- Header ---
 
-col_title, col_nav = st.columns([4, 1])
-col_title.title("Enforcement Action Monitor")
-col_nav.page_link("pages/Search_All_Actions.py", label="Search All Actions", icon=":material/search:")
+st.title("Enforcement Action Monitor")
+st.page_link("pages/Search_All_Actions.py", label="Search All Actions", icon=":material/search:")
 
 last_updated = db.last_updated()
 if last_updated:

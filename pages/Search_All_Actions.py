@@ -77,9 +77,8 @@ total_count = db.count()
 
 # --- Header ---
 
-col_title, col_nav = st.columns([4, 1])
-col_title.title("Search All Actions")
-col_nav.page_link("dashboard.py", label="Back to Dashboard", icon=":material/arrow_back:")
+st.title("Search All Actions")
+st.page_link("dashboard.py", label="Back to Dashboard", icon=":material/arrow_back:")
 
 
 # --- Filters (inline, not sidebar) ---
