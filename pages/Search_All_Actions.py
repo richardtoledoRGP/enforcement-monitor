@@ -50,6 +50,14 @@ st.set_page_config(
 
 os.chdir(Path(__file__).parent.parent)
 
+# Hide sidebar and page navigation
+st.markdown("""
+<style>
+    [data-testid="stSidebar"] { display: none; }
+    [data-testid="stSidebarCollapsedControl"] { display: none; }
+</style>
+""", unsafe_allow_html=True)
+
 # --- Auth gate (shared session state with main page) ---
 
 if not st.session_state.get("authenticated"):

@@ -58,6 +58,14 @@ st.set_page_config(
 
 os.chdir(Path(__file__).parent)
 
+# Hide sidebar and page navigation
+st.markdown("""
+<style>
+    [data-testid="stSidebar"] { display: none; }
+    [data-testid="stSidebarCollapsedControl"] { display: none; }
+</style>
+""", unsafe_allow_html=True)
+
 
 # --- Authentication ---
 
