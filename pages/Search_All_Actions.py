@@ -150,16 +150,26 @@ if not df.empty:
 if not df.empty:
     df["category"] = df["source"].apply(get_category)
 
-    display_df = df[["first_seen", "source", "title", "url", "date"]].copy()
-    display_df.columns = ["Load Date", "Source", "Title", "Link", "Action Date"]
+    # Ensure summary/ai_overview columns exist
+    if "summary" not in df.columns:
+        df["summary"] = ""
+    if "ai_overview" not in df.columns:
+        df["ai_overview"] = ""
+    df["summary"] = df["summary"].fillna("")
+    df["ai_overview"] = df["ai_overview"].fillna("")
+
+    display_df = df[["first_seen", "source", "title", "summary", "ai_overview", "url", "date"]].copy()
+    display_df.columns = ["Load Date", "Source", "Title", "Summary", "AI Overview", "Link", "Action Date"]
     display_df["Load Date"] = display_df["Load Date"].str[:10]
 
     st.dataframe(
         display_df,
         column_config={
             "Link": st.column_config.LinkColumn("Link", display_text="View"),
-            "Title": st.column_config.TextColumn("Title", width="large"),
+            "Title": st.column_config.TextColumn("Title", width="medium"),
             "Source": st.column_config.TextColumn("Source", width="small"),
+            "Summary": st.column_config.TextColumn("Summary", width="medium"),
+            "AI Overview": st.column_config.TextColumn("AI Overview", width="medium"),
         },
         hide_index=True,
         width="stretch",

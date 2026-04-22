@@ -87,6 +87,42 @@ def _fetch(url: str) -> cffi_requests.Response:
         return response
 
 
+def _strip_html(text: str) -> str:
+    """Strip HTML tags and collapse whitespace."""
+    t = re.sub(r'<[^>]+>', ' ', text or '').replace('&nbsp;', ' ')
+    return re.sub(r'\s+', ' ', t).strip()
+
+
+def _extract_summary(el, summary_selector) -> str:
+    """Apply one or more CSS selectors relative to `el` and join their text with ' | '.
+
+    If `el` is a link (<a>), the summary is searched within the enclosing <tr>
+    or other block-level parent so sibling table columns are accessible.
+    """
+    if not summary_selector:
+        return ""
+
+    # If el is a link, walk up to the nearest row/list-item for sibling access
+    search_root = el
+    if el.name == "a":
+        parent_row = el.find_parent("tr") or el.find_parent("li")
+        if parent_row:
+            search_root = parent_row
+
+    selectors = [summary_selector] if isinstance(summary_selector, str) else list(summary_selector)
+    parts = []
+    for sel in selectors:
+        try:
+            found = search_root.select_one(sel)
+        except Exception:
+            continue
+        if found:
+            text = found.get_text(" ", strip=True)
+            if text:
+                parts.append(text)
+    return " | ".join(parts)[:500]
+
+
 class BaseScraper:
     def matches_keywords(self, text: str, keywords: list[str]) -> bool:
         if not keywords:
@@ -123,19 +159,23 @@ class RssScraper(BaseScraper):
             for entry in feed.entries:
                 title = entry.get("title", "")
                 link = entry.get("link", "")
-                summary = entry.get("summary", "")
+                raw_summary = entry.get("summary", "")
                 published = entry.get("published", "")
-                full_text = f"{title} {summary}"
+                full_text = f"{title} {raw_summary}"
 
                 if not self.matches_keywords(full_text, keywords):
                     continue
+
+                # Strip HTML from RSS summary for display use
+                clean_summary = _strip_html(raw_summary)[:500]
 
                 action = EnforcementAction(
                     source=name,
                     title=title.strip(),
                     url=link.strip(),
                     date=published,
-                    raw_text=summary[:500],
+                    raw_text=raw_summary[:500],
+                    summary=clean_summary,
                     penalty_amount=self.extract_penalty_amount(full_text),
                 )
                 actions.append(action)
@@ -155,6 +195,7 @@ class HtmlScraper(BaseScraper):
         selector = source.get("selector")
         title_selector = source.get("title_selector")
         title_from_url = source.get("title_from_url")
+        summary_selector = source.get("summary_selector")
         keywords = source.get("keywords", [])
 
         if not selector:
@@ -201,6 +242,7 @@ class HtmlScraper(BaseScraper):
                     continue
 
                 date_text = self._extract_date_from_element(el, full_text)
+                summary = _extract_summary(el, summary_selector)
 
                 action = EnforcementAction(
                     source=name,
@@ -208,6 +250,7 @@ class HtmlScraper(BaseScraper):
                     url=full_url,
                     date=date_text,
                     raw_text=full_text[:500],
+                    summary=summary,
                     penalty_amount=self.extract_penalty_amount(full_text),
                 )
                 actions.append(action)
@@ -292,6 +335,7 @@ class PlaywrightScraper(BaseScraper):
         url = source["url"]
         selector = source.get("selector")
         title_selector = source.get("title_selector")
+        summary_selector = source.get("summary_selector")
         wait_for = source.get("wait_for", selector)
         actions = source.get("actions", [])
         keywords = source.get("keywords", [])
@@ -373,6 +417,7 @@ class PlaywrightScraper(BaseScraper):
                     continue
 
                 date_text = self._extract_date_from_element(el, full_text)
+                summary = _extract_summary(el, summary_selector)
 
                 found_actions.append(EnforcementAction(
                     source=name,
@@ -380,6 +425,7 @@ class PlaywrightScraper(BaseScraper):
                     url=full_url,
                     date=date_text,
                     raw_text=full_text[:500],
+                    summary=summary,
                     penalty_amount=self.extract_penalty_amount(full_text),
                 ))
 

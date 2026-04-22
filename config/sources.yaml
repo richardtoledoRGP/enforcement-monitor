@@ -86,6 +86,7 @@
   url: "https://www.consumerfinance.gov/enforcement/actions/"
   category: federal_banking
   selector: "article.o-post-preview"
+  summary_selector: ".o-post-preview__description"
   keywords: []
   enabled: true
 
@@ -141,6 +142,7 @@
   url: "https://www.dfs.ny.gov/industry_guidance/enforcement_actions"
   category: state_banking
   selector: "div.field--name-body table tbody tr"
+  summary_selector: "td:nth-child(3)"
   keywords: []
   enabled: true
 
@@ -181,7 +183,11 @@
   type: html
   url: "https://com.ohio.gov/wps/portal/gov/com/divisions-and-programs/financial-institutions/enforcement/enforcement"
   category: state_banking
-  selector: ".odx-content__body table a"
+  selector: ".odx-content__body table tbody tr"
+  title_selector: "td:nth-child(2)"
+  summary_selector:
+    - "td:nth-child(3)"
+    - "td:nth-child(4)"
   keywords: []
   enabled: true
 
@@ -219,7 +225,11 @@
   type: html
   url: "https://www.mass.gov/info-details/enforcement-actions-issued-by-the-division-of-banks"
   category: state_banking
-  selector: ".ma__table a"
+  selector: ".ma__table tbody tr"
+  title_selector: "td:nth-child(3)"
+  summary_selector:
+    - "td:nth-child(2)"
+    - "td:nth-child(4)"
   keywords: []
   enabled: true
 
@@ -229,6 +239,9 @@
   category: state_banking
   selector: ".view-content table tr"
   title_selector: "td:nth-child(2)"
+  summary_selector:
+    - "td:nth-child(3)"
+    - "td:nth-child(4)"
   keywords: []
   enabled: true
 
@@ -255,6 +268,7 @@
   url: "https://www.doah.state.fl.us/FLAIO/OFR/"
   category: state_banking
   selector: "a[href*='FLAID/OFR']"
+  summary_selector: "td:last-child"
   keywords: []
   enabled: true
 
@@ -264,6 +278,9 @@
   category: state_banking
   selector: "table.views-table tbody tr"
   title_selector: "td.views-field-body"
+  summary_selector:
+    - "td.views-field-field-order-type"
+    - "td.views-field-field-enforcemen"
   keywords: []
   enabled: true
 
@@ -273,7 +290,11 @@
   type: playwright
   url: "https://dfr.oregon.gov/laws-rules/Pages/notices-orders.aspx"
   category: state_banking
-  selector: "table#resultTable a[href*='.pdf']"
+  selector: "table#resultTable tbody tr"
+  title_selector: "td:first-child"
+  summary_selector:
+    - "td:nth-child(3)"
+    - "td:nth-child(4)"
   wait_for: "table#resultTable"
   actions: []
   keywords: []
@@ -378,6 +399,7 @@
   url: "https://insurance.illinois.gov/Applications/DirectorsOrders/"
   category: state_insurance
   selector: "#DocumentResults tbody tr"
+  summary_selector: "td:nth-child(2)"
   wait_for: "#Search_SelectedDocumentTypes"
   actions:
     - { type: "click", selector: "button[type='submit']" }
@@ -399,6 +421,7 @@
   category: state_insurance
   selector: "#ConsumerCareContents_SearchTabs_ctl00_OrderSearchRslt_SearchResult tbody tr"
   title_selector: "td:nth-child(3)"
+  summary_selector: "td:nth-child(4)"
   wait_for: "#ConsumerCareContents_SearchTabs_ctl00_ddlOrderIssuedYear"
   actions:
     - { type: "select", selector: "#ConsumerCareContents_SearchTabs_ctl00_ddlOrderIssuedYear", value: "2026" }

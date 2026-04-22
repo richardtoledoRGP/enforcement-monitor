@@ -132,15 +132,25 @@ if not new_df.empty:
     # New actions table
     date_col = "parsed_date" if "parsed_date" in new_df.columns else "date"
     new_df["load_date"] = new_df["first_seen"].str[:10]
-    new_display = new_df[["load_date", "source", "title", "url", date_col]].copy()
-    new_display.columns = ["Load Date", "Source", "Title", "Link", "Action Date"]
+    # Ensure summary/ai_overview columns exist (may be missing in older DB rows)
+    if "summary" not in new_df.columns:
+        new_df["summary"] = ""
+    if "ai_overview" not in new_df.columns:
+        new_df["ai_overview"] = ""
+    new_df["summary"] = new_df["summary"].fillna("")
+    new_df["ai_overview"] = new_df["ai_overview"].fillna("")
+
+    new_display = new_df[["load_date", "source", "title", "summary", "ai_overview", "url", date_col]].copy()
+    new_display.columns = ["Load Date", "Source", "Title", "Summary", "AI Overview", "Link", "Action Date"]
 
     st.dataframe(
         new_display,
         column_config={
             "Link": st.column_config.LinkColumn("Link", display_text="View"),
-            "Title": st.column_config.TextColumn("Title", width="large"),
+            "Title": st.column_config.TextColumn("Title", width="medium"),
             "Source": st.column_config.TextColumn("Source", width="small"),
+            "Summary": st.column_config.TextColumn("Summary", width="medium"),
+            "AI Overview": st.column_config.TextColumn("AI Overview", width="medium"),
         },
         hide_index=True,
         width="stretch",

@@ -12,6 +12,8 @@ class EnforcementAction:
     action_type: str = ""  # e.g., "consent_order", "cease_desist", "penalty"
     penalty_amount: float = 0.0
     raw_text: str = ""     # Full text snippet for keyword matching
+    summary: str = ""      # Short summary from listing page columns
+    ai_overview: str = ""  # LLM-generated overview (populated in Phase 2)
     fingerprint: str = field(default="", init=False)
 
     def __post_init__(self):

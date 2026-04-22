@@ -21,9 +21,17 @@ class DiffEngine:
                 title TEXT,
                 url TEXT,
                 date TEXT,
-                first_seen TEXT NOT NULL
+                first_seen TEXT NOT NULL,
+                summary TEXT DEFAULT '',
+                ai_overview TEXT DEFAULT ''
             )
         """)
+        # Add columns if the table already existed without them
+        for col in ("summary", "ai_overview"):
+            try:
+                self.conn.execute(f"ALTER TABLE seen_actions ADD COLUMN {col} TEXT DEFAULT ''")
+            except sqlite3.OperationalError:
+                pass  # Column already exists
         self.conn.commit()
 
     def check_new(self, actions: list[EnforcementAction]) -> list[EnforcementAction]:
@@ -45,10 +53,12 @@ class DiffEngine:
         for action in actions:
             self.conn.execute(
                 """INSERT OR IGNORE INTO seen_actions
-                   (fingerprint, source, title, url, date, first_seen)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
+                   (fingerprint, source, title, url, date, first_seen, summary, ai_overview)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                 (action.fingerprint, action.source, action.title,
-                 action.url, action.date, now)
+                 action.url, action.date, now,
+                 getattr(action, "summary", "") or "",
+                 getattr(action, "ai_overview", "") or "")
             )
         self.conn.commit()
 
@@ -98,7 +108,7 @@ class DiffEngine:
 
         where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
         query = f"""
-            SELECT fingerprint, source, title, url, date, first_seen
+            SELECT fingerprint, source, title, url, date, first_seen, summary, ai_overview
             FROM seen_actions {where}
             ORDER BY first_seen DESC
             LIMIT ?
@@ -129,7 +139,7 @@ class DiffEngine:
 
         self.conn.row_factory = sqlite3.Row
         cursor = self.conn.execute(
-            "SELECT fingerprint, source, title, url, date, first_seen FROM seen_actions"
+            "SELECT fingerprint, source, title, url, date, first_seen, summary, ai_overview FROM seen_actions"
         )
         all_rows = [dict(row) for row in cursor.fetchall()]
         self.conn.row_factory = None
