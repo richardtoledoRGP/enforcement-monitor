@@ -130,7 +130,6 @@ if not new_df.empty:
         cols[2 + i].metric(cat, f"{count:,}")
 
     # New actions table
-    date_col = "parsed_date" if "parsed_date" in new_df.columns else "date"
     new_df["load_date"] = new_df["first_seen"].str[:10]
     # Ensure summary/ai_overview columns exist (may be missing in older DB rows)
     if "summary" not in new_df.columns:
@@ -140,8 +139,8 @@ if not new_df.empty:
     new_df["summary"] = new_df["summary"].fillna("")
     new_df["ai_overview"] = new_df["ai_overview"].fillna("")
 
-    new_display = new_df[["load_date", "source", "title", "summary", "ai_overview", "url", date_col]].copy()
-    new_display.columns = ["Load Date", "Source", "Title", "Summary", "AI Overview", "Link", "Action Date"]
+    new_display = new_df[["load_date", "source", "title", "summary", "ai_overview", "url"]].copy()
+    new_display.columns = ["Load Date", "Source", "Title", "Summary", "AI Overview", "Link"]
 
     st.dataframe(
         new_display,
