@@ -1,8 +1,10 @@
+import hashlib
 import logging
 import random
 import re
 import time
 from collections import defaultdict
+from datetime import date, timedelta
 from urllib.parse import urljoin, urlparse
 
 import feedparser
@@ -91,6 +93,41 @@ def _strip_html(text: str) -> str:
     """Strip HTML tags and collapse whitespace."""
     t = re.sub(r'<[^>]+>', ' ', text or '').replace('&nbsp;', ' ')
     return re.sub(r'\s+', ' ', t).strip()
+
+
+def _business_days_ago(n: int, today: date | None = None) -> date:
+    """Return the date N business days before today (skipping Sat/Sun)."""
+    d = today or date.today()
+    remaining = n
+    while remaining > 0:
+        d -= timedelta(days=1)
+        if d.weekday() < 5:  # Mon=0..Fri=4
+            remaining -= 1
+    return d
+
+
+def _substitute_date_tokens(value: str, today: date | None = None) -> str:
+    """Replace {today}, {days_ago_N}, {business_days_ago_N} tokens with MM/DD/YYYY dates."""
+    if not value or "{" not in value:
+        return value
+    t = today or date.today()
+
+    def fmt(d: date) -> str:
+        return d.strftime("%m/%d/%Y")
+
+    value = value.replace("{today}", fmt(t))
+
+    def repl_days(m):
+        n = int(m.group(1))
+        return fmt(t - timedelta(days=n))
+
+    def repl_bdays(m):
+        n = int(m.group(1))
+        return fmt(_business_days_ago(n, t))
+
+    value = re.sub(r'\{days_ago_(\d+)\}', repl_days, value)
+    value = re.sub(r'\{business_days_ago_(\d+)\}', repl_bdays, value)
+    return value
 
 
 def _extract_summary(el, summary_selector) -> str:
@@ -390,17 +427,23 @@ class PlaywrightScraper(BaseScraper):
             elements = soup.select(selector)
 
             found_actions = []
-            for el in elements:
+            action_row_indices = []  # parallel list mapping each action to its row index in `elements`
+            detail_cfg = source.get("detail")
+
+            for row_idx, el in enumerate(elements):
                 link_el = el if el.name == "a" else el.find("a")
-                if not link_el:
+                # If detail config is present, we tolerate rows without an <a> at scrape time
+                # since the canonical URL is captured from the detail page later.
+                if not link_el and not detail_cfg:
                     continue
 
-                title = link_el.get_text(strip=True)
-                href = link_el.get("href", "")
-                if not href:
+                title = link_el.get_text(strip=True) if link_el else ""
+                href = link_el.get("href", "") if link_el else ""
+                # Without detail_cfg we require an href; with detail_cfg the URL comes later
+                if not href and not detail_cfg:
                     continue
 
-                full_url = urljoin(url, href)
+                full_url = urljoin(url, href) if href else ""
                 full_text = el.get_text(" ", strip=True)
 
                 # Use title_selector if configured (e.g., a specific table column)
@@ -428,6 +471,12 @@ class PlaywrightScraper(BaseScraper):
                     summary=summary,
                     penalty_amount=self.extract_penalty_amount(full_text),
                 ))
+                action_row_indices.append(row_idx)
+
+            # Detail click-through: for postback/JS-driven sources where the row link is
+            # not a real URL, click each row and capture the canonical URL from the detail panel.
+            if detail_cfg and found_actions:
+                self._follow_detail_links(page, source, selector, found_actions, action_row_indices, url)
 
             logger.info(f"[{name}] Playwright: found {len(found_actions)} matching entries from {len(elements)} elements")
             return ScrapeResult(source_name=name, actions=found_actions, success=True)
@@ -509,10 +558,60 @@ class PlaywrightScraper(BaseScraper):
         logger.info(f"[{name}] Playwright (frames): found {len(found_actions)} entries")
         return ScrapeResult(source_name=name, actions=found_actions, success=True)
 
+    def _follow_detail_links(self, page, source: dict, row_selector: str,
+                             found_actions: list, action_row_indices: list,
+                             base_url: str):
+        """For each row that produced an action, click into its detail panel
+        and replace the action's URL with the canonical URL from the detail page.
+        Also optionally overrides the summary from detail-page selectors."""
+        name = source["name"]
+        detail_cfg = source.get("detail", {})
+        click_sel = detail_cfg.get("click_selector", "a")
+        wait_for_detail = detail_cfg.get("wait_for")
+        url_sel = detail_cfg.get("url_selector")
+        url_attr = detail_cfg.get("url_attr", "href")
+        detail_summary_sel = detail_cfg.get("summary_selector")
+        back_actions = detail_cfg.get("back_actions", [])
+
+        for action, row_idx in zip(found_actions, action_row_indices):
+            try:
+                row_locator = page.locator(row_selector).nth(row_idx)
+                row_locator.locator(click_sel).first.click(timeout=10_000)
+
+                if wait_for_detail:
+                    page.wait_for_selector(wait_for_detail, timeout=15_000)
+
+                if url_sel:
+                    href = page.locator(url_sel).first.get_attribute(url_attr) or ""
+                    if href:
+                        action.url = urljoin(base_url, href)
+                        action.fingerprint = hashlib.md5(
+                            f"{action.source}|{action.url}".encode()
+                        ).hexdigest()
+
+                if detail_summary_sel:
+                    sels = ([detail_summary_sel] if isinstance(detail_summary_sel, str)
+                            else list(detail_summary_sel))
+                    parts = []
+                    for s in sels:
+                        try:
+                            txt = page.locator(s).first.text_content(timeout=2_000)
+                            if txt and txt.strip():
+                                parts.append(txt.strip())
+                        except Exception:
+                            pass
+                    if parts:
+                        action.summary = " | ".join(parts)[:500]
+
+                for back_action in back_actions:
+                    self._execute_action(page, back_action, name)
+            except Exception as e:
+                logger.warning(f"[{name}] Detail click failed for row {row_idx}: {e}")
+
     def _execute_action(self, page, action: dict, source_name: str):
         action_type = action.get("type", "")
         sel = action.get("selector", "")
-        value = action.get("value", "")
+        value = _substitute_date_tokens(action.get("value", ""))
 
         try:
             if action_type == "fill":

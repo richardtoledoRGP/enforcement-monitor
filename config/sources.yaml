@@ -449,12 +449,34 @@
 # --- DISABLED: Not scrapable ---
 
 - name: "CA CDI"
-  type: html
+  type: playwright
   url: "https://legaldocs.insurance.ca.gov/publicdocs/SearchBasic"
   category: state_insurance
-  selector: null  # ASP.NET postback; result links use __doPostBack (no direct URLs)
+  # Only match data rows (those with a btnCase_Click postback link in column 1).
+  # This excludes the header row and the pagination footer row.
+  selector: "#MainContent_gvCaseResults tr:has(a[href*='btnCase_Click'])"
+  title_selector: "td:nth-child(2)"
+  summary_selector: "td:nth-child(1)"
+  wait_for: "#MainContent_lnkButtonAdvancedSearch"
+  actions:
+    # Switch to Advanced Search (postback)
+    - { type: "click", selector: "#MainContent_lnkButtonAdvancedSearch" }
+    - { type: "wait", selector: "#MainContent_txtC_DOC_DATE" }
+    # Rolling 5-business-day window — substituted at runtime each cron run
+    - { type: "fill", selector: "#MainContent_txtC_DOC_DATE", value: "{business_days_ago_5} to {today}" }
+    # Submit Advanced Search (different ID from the Basic Search submit button)
+    - { type: "click", selector: "#MainContent_lnkbtnAdvancedSearch" }
+    - { type: "wait", selector: "#MainContent_gvCaseResults" }
+    - { type: "sleep", value: "2" }
+  detail:
+    click_selector: "td:nth-child(1) a"
+    wait_for: "#MainContent_gvDocResults"
+    url_selector: "#MainContent_gvDocResults a[href*='CyberDOCS']"
+    summary_selector:
+      - "#MainContent_gvDocResults td:nth-child(4)"   # Document Type
+      - "#MainContent_gvDocResults td:nth-child(5)"   # Posted Date
   keywords: []
-  enabled: false
+  enabled: true
 
 # --- DISABLED: No enforcement page found or not enforcement-focused ---
 
